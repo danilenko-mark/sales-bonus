@@ -7,7 +7,7 @@
 
 function calculateSimpleRevenue(purchase, product) {
     const priceWithDiscount = purchase.sale_price * (1 - purchase.discount / 100);
-    return priceWithDiscount * purchase.quantity;
+    return Math.round(priceWithDiscount * purchase.quantity * 100) / 100;
 }
 
 /**
@@ -20,14 +20,19 @@ function calculateSimpleRevenue(purchase, product) {
 
 function calculateBonusByProfit(index, total, seller) {
     const { profit } = seller;
+    
+    if (total <= 1) {
+        return Math.round(profit * 0.15 * 100) / 100;
+    }
+    
     if (index === 0) {
-        return profit * 0.15;
+        return Math.round(profit * 0.15 * 100) / 100;
     } else if (index === 1 || index === 2) {
-        return profit * 0.10;
+        return Math.round(profit * 0.10 * 100) / 100;
     } else if (index === total - 1) {
         return 0;
     } else {
-        return profit * 0.05;
+        return Math.round(profit * 0.05 * 100) / 100;
     }
 }
 
@@ -69,7 +74,7 @@ function analyzeSalesData(data, options) {
         revenue: 0,
         profit: 0,
         sales_count: 0,
-        products_sold: {} // Здесь будем накапливать количество проданных товаров по SKU
+        products_sold: {}
     }));
 
     // Индексация для быстрого доступа
@@ -88,22 +93,20 @@ function analyzeSalesData(data, options) {
         const seller = sellerIndex[record.seller_id];
         
         if (!seller) {
-            return; // Пропускаем, если продавец не найден
+            return;
         }
         
-        // Увеличиваем счетчик продаж
         seller.sales_count += 1;
         
-        // Обрабатываем каждый товар в чеке
         record.items.forEach(item => {
             const product = productIndex[item.sku];
             
-            // Рассчитываем выручку от этого товара
+            // Рассчитываем выручку от этого товара (уже с округлением внутри calculateRevenue)
             const revenue = calculateRevenue(item, product);
             seller.revenue += revenue;
             
             // Рассчитываем себестоимость
-            const cost = product ? product.purchase_price * item.quantity : 0;
+            const cost = product ? Math.round(product.purchase_price * item.quantity * 100) / 100 : 0;
             
             // Рассчитываем прибыль
             const profit = revenue - cost;
@@ -115,6 +118,12 @@ function analyzeSalesData(data, options) {
             }
             seller.products_sold[item.sku] += item.quantity;
         });
+    });
+
+    // Округляем накопленные значения
+    sellerStats.forEach(seller => {
+        seller.revenue = Math.round(seller.revenue * 100) / 100;
+        seller.profit = Math.round(seller.profit * 100) / 100;
     });
 
     // Сортировка продавцов по прибыли (по убыванию)
@@ -137,11 +146,11 @@ function analyzeSalesData(data, options) {
         return {
             seller_id: seller.id,
             name: seller.name,
-            revenue: Math.round(seller.revenue * 100) / 100, // Округляем до 2 знаков
-            profit: Math.round(seller.profit * 100) / 100,
+            revenue: seller.revenue,
+            profit: seller.profit,
             sales_count: seller.sales_count,
             top_products: topProducts,
-            bonus: Math.round(seller.bonus * 100) / 100
+            bonus: seller.bonus
         };
     });
 }
