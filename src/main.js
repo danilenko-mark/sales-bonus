@@ -97,18 +97,20 @@ function analyzeSalesData(data, options) {
         }
         
         seller.sales_count += 1;
+        // Используем total_amount из чека для выручки
+        seller.revenue += record.total_amount;
         
+        // Но всё равно обрабатываем товары для расчёта прибыли
         record.items.forEach(item => {
             const product = productIndex[item.sku];
-            
-            // Рассчитываем выручку от этого товара
-            const revenue = calculateRevenue(item, product);
-            seller.revenue += revenue;
             
             // Рассчитываем себестоимость
             const cost = product ? product.purchase_price * item.quantity : 0;
             
-            // Рассчитываем прибыль
+            // Выручку уже посчитали через total_amount, поэтому здесь считаем только выручку от товара для расчёта profit
+            const revenue = calculateRevenue(item, product);
+            
+            // Рассчитываем прибыль от этого товара
             const profit = revenue - cost;
             seller.profit += profit;
             
